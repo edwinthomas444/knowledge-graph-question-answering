@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+
+.ipynb_checkpoints/
+
+dataset/STSRawData
+dataset/SQUADRawData
+
+output/
+
+cache/
