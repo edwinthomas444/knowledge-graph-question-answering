@@ -15,7 +15,7 @@ def main():
     ds_file = '../Dataset_v1/dev_30.txt'
     span_model = 'Davlan/bert-base-multilingual-cased-ner-hrl'
     sentence_model = 'sentence-transformers/all-distilroberta-v1'
-
+    
     # note: hidden emb dim must be same for both sentence and span detn models (i.e 768)
     dataset = WikiDataDataset(  
                             ent_file,

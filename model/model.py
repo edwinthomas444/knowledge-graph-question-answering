@@ -59,6 +59,11 @@ class EntityResolution(nn.Module):
         x0 = torch.matmul(one_hot.permute((0,2,1)),cand_scores)
         # trim the last cell 
         x0 = x0[:,:-1,:]
+        # as out of distribution classes are trimmed
+        # the remaining vector is passed through softmax again
+        # to obtain probability distributions
+        # ToDO: reengineer the OOD cases 
+        x0 = self.softmax(x0)
         return x0
     
 

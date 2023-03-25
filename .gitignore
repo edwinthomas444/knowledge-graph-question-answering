@@ -9,3 +9,5 @@ dataset/SQUADRawData
 output/
 
 cache/
+
+.vscode/

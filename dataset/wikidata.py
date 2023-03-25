@@ -284,7 +284,6 @@ class WikiDataDataset(Dataset):
         M = [[0.0 for _ in range(col_dim)] for _ in range(len(self.triplets_df))]
         for i in range(col_dim):
             if i in self.ind2tripletind[mode.value]:
-                # print('There')
                 triplet_inds = self.ind2tripletind[mode.value][i]
                 for ti in triplet_inds:
                     M[ti][i]=1.0
@@ -336,7 +335,7 @@ class WikiDataDataset(Dataset):
                 span_triplets.append(triplet_inds_padded)
 
                 # for attention tensor preparation (actual weights, + padded weights which are zeros)
-                # shape (max_properties)
+                # shape (max_properties)  
                 attn_vals_padded = [1.0/num_properties for _ in range(0,num_properties)]+[0.0 for _ in range(0,self.max_properties-num_properties)]
                 span_attn_triplets.append(torch.tensor(attn_vals_padded))
             
