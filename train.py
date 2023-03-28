@@ -6,56 +6,76 @@ from torch.utils.data import DataLoader
 from model.model import RigelModel
 from dataset.wikidata import Maps
 import torch.nn as nn
+from tqdm import tqdm 
+import torch
+import json
+import argparse
+import torch.optim as optim
+import torch.optim.lr_scheduler as lr_scheduler
+
+def config_parser(config_path):
+    with open(config_path, 'r') as f:
+        config = json.load(f)
+    return config
 
 def main():
-    # Define Dataset class
-    ent_file = '../KB_v3/entity_csv.xlsx'
-    prop_file = '../KB_v3/predicate_csv.xlsx'
-    trip_file = '../KB_v3/triplet_csv.xlsx'
-    ds_file = '../Dataset_v1/dev_30.txt'
-    span_model = 'Davlan/bert-base-multilingual-cased-ner-hrl'
-    sentence_model = 'sentence-transformers/all-distilroberta-v1'
+    '''
+    example usage:
+    python ./train.py --config './configs/base.json'
+    '''
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--config', type=str, required=True)
+    args = parser.parse_args()
+    configs = config_parser(args.config)
 
+
+    # Define Dataset class
     # note: hidden emb dim must be same for both sentence and span detn models (i.e 768)
     dataset = WikiDataDataset(  
-                            ent_file,
-                            prop_file,
-                            trip_file,
-                            ds_file,
-                            max_cand=3,
-                            max_spans=12,
-                            max_properties=10,
-                            span_detn_model=span_model,
-                            sentence_emb_model=sentence_model,
-                            emb_dim=768)
+                            configs['dataset']['ent_file'],
+                            configs['dataset']['prop_file'],
+                            configs['dataset']['trip_file'],
+                            configs['dataset']['ds_file'],
+                            max_cand=configs['hparams']['max_cand'],
+                            max_spans=configs['hparams']['max_spans'],
+                            max_properties=configs['hparams']['max_properties'],
+                            span_detn_model=configs['hparams']['span_model'],
+                            sentence_emb_model=configs['hparams']['sentence_model'],
+                            emb_dim=configs['hparams']['emb_size'])
     
     # obtain the train dataloader
-    train_dataloader = DataLoader(dataset, batch_size=2)
+    train_dataloader = DataLoader(dataset, batch_size=configs['train']['batch_size'])
 
     model = RigelModel(
         triplet_size=dataset.total_triplets,
-        max_spans=12,
-        max_cand=3,
-        max_prop=10,
+        max_spans=configs['hparams']['max_spans'],
+        max_cand=configs['hparams']['max_cand'],
+        max_prop=configs['hparams']['max_properties'],
         num_entities=dataset.total_entities,
-        max_hops=1,
+        max_hops=configs['hparams']['max_hops'],
         Ms=dataset.get_sparse_matrix(Maps.subj).to('cuda'),
         Mo=dataset.get_sparse_matrix(Maps.obj).to('cuda'),
         Mp=dataset.get_sparse_matrix(Maps.prop).to('cuda'),
         hdim=dataset.total_properties,
-        emb_dim=768
+        emb_dim=configs['hparams']['emb_size']
     )
     model.to('cuda')
+
+    
 
     # define loss
     loss = nn.BCELoss()
 
     # define total epochs
-    total_epochs = 1
+    total_epochs = configs['train']['epochs']
+
+    # define lr schedulers and optimizers
+    optimizer = optim.Adam(model.parameters(), lr=configs['train']['lr'])
+    scheduler = lr_scheduler.ExponentialLR(optimizer, gamma=0.96)
 
     # train for total number of epochs
     for epoch in range(0,total_epochs):
-        for batch in train_dataloader:
+        for batch in tqdm(train_dataloader, total=len(train_dataloader)):
             # move the batch to gpu
             batch = tuple(t.to('cuda') for t in batch)
             inputs_er = {
@@ -72,11 +92,21 @@ def main():
             out = model(**inputs_er)
             out_loss = loss(out, batch[6])
 
-            print(f'Epoch: {epoch}, Loss: {out_loss.item()}')
+            optimizer.zero_grad()
             out_loss.backward()
+            optimizer.step()
 
+            # save the model
+            torch.save({
+                'epoch': epoch,
+                'model_state_dict': model.state_dict(),
+                'loss': out_loss.item(),
+                }, configs['train']['save_path'])
+        
+        # step lr after each epoch
+        scheduler.step()
+        after_lr = optimizer.param_groups[0]["lr"]
+        print(f'Epoch: {epoch}, Loss: {out_loss.item()}, LR: {after_lr}')
 
-
-    
 if __name__ == '__main__':
     main()

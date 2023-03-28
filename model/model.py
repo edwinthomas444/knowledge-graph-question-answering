@@ -59,6 +59,11 @@ class EntityResolution(nn.Module):
         x0 = torch.matmul(one_hot.permute((0,2,1)),cand_scores)
         # trim the last cell 
         x0 = x0[:,:-1,:]
+        # as out of distribution classes are trimmed
+        # the remaining vector is passed through softmax again
+        # to obtain probability distributions
+        # ToDO: reengineer the OOD cases 
+        x0 = self.softmax(x0)
         return x0
     
 
@@ -137,6 +142,7 @@ class RigelModel(nn.Module):
         # forward pass through er_model
         out = self.er_model(span_embs, triplet_ids_tr, offsets_tr, attention_tr, qid_inds)
         out = self.inf_model(out, qn_emb)
+        # print('final out: ', out)
         return out
     
 
