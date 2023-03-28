@@ -52,6 +52,8 @@ class Inference:
             hdim=self.dataset.total_properties,
             emb_dim=self.configs['hparams']['emb_size']
         )
+        checkpt = torch.load(checkpoint)
+        model.load_state_dict(checkpt['model_state_dict'])
         return model
     
     def get_features(self, question):
@@ -78,7 +80,8 @@ class Inference:
             # trim them to max_cand
             for cand_ind in candqid_inds:
                 # get all triplet inds for BOE for the given cand_ind
-                triplet_inds = self.dataset.ind2tripletind[Maps.subj.value][cand_ind]
+                # trip properties to max length
+                triplet_inds = self.dataset.ind2tripletind[Maps.subj.value][cand_ind][:self.dataset.max_properties]
                 triplet_inds_tr = torch.tensor(triplet_inds)
                 # pad inds for properties of this span to max properties
                 num_properties = list(triplet_inds_tr.shape)[0]
@@ -163,7 +166,7 @@ class Inference:
         features = self.get_features(question)
 
         # get model
-        model = self.get_model()
+        model = self.get_model(checkpoint=self.configs['inference']['rigel_model'])
         model.to('cuda')
         model.eval()
 
@@ -186,8 +189,12 @@ class Inference:
             # its possible that all the weightage can go to ood class when the initial vector
             # is passed for padded entities.
             # Note: output is multilabel
-            ans_qid_inds = torch.where(out>=self.configs['inference']['thresh'])[1].to('cpu').tolist()
+            if self.configs['inference']['multilabel']:
+                ans_qid_inds = torch.where(out>=self.configs['inference']['thresh'])[1].to('cpu').tolist()
+            else:
+                ans_qid_inds = [torch.argmax(out.to('cpu')).item()]
             answers = [self.dataset.entity_df.iloc[ind]['e_label'] for ind in ans_qid_inds]
+            print(answers)
             result = {
                 'Question':question,
                 'Answers':answers
@@ -198,20 +205,17 @@ class Inference:
 def main():
     '''
     Sample usage: 
-    python .\inference.py 
-    --config './configs/base.json' 
-    --question 'Which year did Angelina Jolie win oscars?'
+    python .\inference.py --config './configs/base.json'
     '''
     
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', type=str, required=True)
-    parser.add_argument('--question', type=str, required=True)
     args = parser.parse_args()
     config = config_parser(args.config)
 
     # inference pipeline
     inf_handle = Inference(configs=config)
-    result = inf_handle.infer(args.question)
+    result = inf_handle.infer(config['inference']['question'])
 
     # display results
     print('Question: ',result['Question'])

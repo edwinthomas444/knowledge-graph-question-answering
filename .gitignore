@@ -3,10 +3,9 @@ __pycache__/
 
 .ipynb_checkpoints/
 
-dataset/STSRawData
-dataset/SQUADRawData
-
 output/
+
+checkpoint/
 
 cache/
 

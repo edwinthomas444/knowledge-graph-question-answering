@@ -142,6 +142,7 @@ class RigelModel(nn.Module):
         # forward pass through er_model
         out = self.er_model(span_embs, triplet_ids_tr, offsets_tr, attention_tr, qid_inds)
         out = self.inf_model(out, qn_emb)
+        # print('final out: ', out)
         return out
     
 

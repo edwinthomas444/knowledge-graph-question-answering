@@ -110,10 +110,10 @@ class WikiDataDataset(Dataset):
 
         self.max_spans, self.max_cand, self.max_properties = max_spans, max_cand, max_properties
         self.entity_df, self.properties_df, self.triplets_df = self.preprocess_df(ent_file, pred_file, trip_file)
-        self.dataset_df = self.preprocess_dataset(ds_file)
         self.total_entities = len(self.entity_df)
         self.total_triplets = len(self.triplets_df)
         self.total_properties = len(self.properties_df)
+
         self.emb_dim = emb_dim
         
         # for subject, object, property
@@ -136,6 +136,10 @@ class WikiDataDataset(Dataset):
         self.set_triplet_maps(self.triplets_df, prefix='s', map_val=Maps.subj.value)
         self.set_triplet_maps(self.triplets_df, prefix='o', map_val=Maps.obj.value)
         self.set_triplet_maps(self.triplets_df, prefix='p', map_val=Maps.prop.value)
+
+        # preprocess dataset
+        self.dataset_df = self.preprocess_dataset(ds_file)
+
         # get ner pipeline
         self.ner = NERSpanExtractionPipeline(model_name = span_detn_model)
         # get sentence embedding model
@@ -144,49 +148,34 @@ class WikiDataDataset(Dataset):
         
     def preprocess_entities_list(self, ent_file):
         df = pd.read_excel(ent_file)
-        len_a = len(df)
         df = df.replace(np.nan, '', regex=True)
-        df = df.rename(columns=
-                  {"entity_id": "e_id",
-                  "entity_name": "e_label",
-                  "entity_alias": "e_alias"})
-        
         df['e_label']=df['e_label'].astype('str')
         df['e_alias']=df['e_alias'].astype('str')
         df = df.drop_duplicates()
-        len_b = len(df)        
+        df = df.reset_index(drop=True) 
+        df.to_csv('./output/entities.csv')
         return df
     
     def preprocess_properties_list(self, prop_file):
         df = pd.read_excel(prop_file)
-        len_a = len(df)
         df = df.replace(np.nan, '', regex=True)
-        df = df.rename(columns=
-                  {"predicate_id": "p_id",
-                  "predicate_name": "p_label",
-                  "predicate_alias": "p_alias"})
-        
         df['p_label']=df['p_label'].astype('str')
         df['p_alias']=df['p_alias'].astype('str')
         df = df.drop_duplicates()
-        len_b = len(df)
+        df = df.reset_index(drop=True) 
+        df.to_csv('./output/properties.csv')
         return df
     
     def preprocess_triplets_list(self, trip_file):
         df = pd.read_excel(trip_file)
-        len_a = len(df)
         df = df.dropna()
         df = df.drop_duplicates()
-        len_b = len(df)
-        df = df.rename(columns=
-                  {"s_id": "s_id",
-                  "p_id": "p_id",
-                  "o_id": "o_id"})                    
+        df = df.reset_index(drop=True)
+        df.to_csv('./output/triplet.csv')                  
         return df
     
     def preprocess_df(self, ent_file, pred_file, trip_file):
         df_entities = self.preprocess_entities_list(ent_file)
-        # self.entity_df.to_csv('test.csv')
         df_prop = self.preprocess_properties_list(pred_file)
         df_triplets = self.preprocess_triplets_list(trip_file)
         df_entities1 = df_entities[df_entities['e_id'].isin(df_triplets['s_id']) | df_entities['e_id'].isin(df_triplets['o_id'])]
@@ -203,9 +192,17 @@ class WikiDataDataset(Dataset):
                 answer_qids = []
                 for answer in entry['answer']['answer']:
                     answer_qids.append(answer['name'])
-                data['question'] = data.setdefault('question',[]) + [question]
-                data['answer_qids'] = data.setdefault('answer_qids',[]) + [answer_qids]
+                # check if all answer qids are present in the objects list (obtained from triplet object column)
+                # find intersecction, if empty, remove entry
+                # else keep the available answers
+                common_ans = set(answer_qids).intersection(set(self.id2ind[Maps.obj.value].keys()))
+                if common_ans:
+                    data['question'] = data.setdefault('question',[]) + [question]
+                    data['answer_qids'] = data.setdefault('answer_qids',[]) + [str(list(common_ans))]
+        
         df = pd.DataFrame(data, columns=['question','answer_qids'])
+        df = df.drop_duplicates()
+        df.to_csv('./output/dataset.csv')
         return df
     
     def set_schema_maps(self, df, prefix, map_val):
@@ -260,14 +257,16 @@ class WikiDataDataset(Dataset):
     
     
     def compute_gt(self, qids):
+        # change string of list to list of qids
+        qids = eval(qids)
         # assumption: answer entity can only be an object in the triplet
-        # try:
-        #     answer_qids_indxs = [self.id2ind[Maps.obj.value][x] for x in qids]
-        # except Exception as e:
-        #     raise Exception("Answer QID not in Object Entities list of QIDs",qids,self.id2ind[Maps.obj.value])
+        try:
+            answer_qids_indxs = [self.id2ind[Maps.obj.value][x] for x in qids]
+        except Exception as e:
+            raise Exception("Answer QID not in Object Entities list of QIDs: ",qids)
         
         # bypass check for test
-        answer_qids_indxs = [0]
+        # answer_qids_indxs = [0]
         
         answer_vector = [0.0 for _ in range(0,self.total_entities)]
         for aind in answer_qids_indxs:
@@ -327,7 +326,8 @@ class WikiDataDataset(Dataset):
             # trim them to max_cand
             for cand_ind in candqid_inds:
                 # get all triplet inds for BOE for the given cand_ind
-                triplet_inds = self.ind2tripletind[Maps.subj.value][cand_ind]
+                # trim properties exceeded max_properties
+                triplet_inds = self.ind2tripletind[Maps.subj.value][cand_ind][:self.max_properties]
                 triplet_inds_tr = torch.tensor(triplet_inds)
                 # pad inds for properties of this span to max properties
                 num_properties = list(triplet_inds_tr.shape)[0]
@@ -345,7 +345,7 @@ class WikiDataDataset(Dataset):
                 span_attn_triplets.append(torch.tensor([0.0 for _ in range(0,self.max_properties)]))
             
             # concatenate the property level across all candidates
-            span_trip = torch.stack(span_triplets,dim=0) # shape (num_cands, num_properties)
+            span_trip = torch.stack(span_triplets,dim=0) # shape (num_cands, max_properties)
             num_cands, _ = span_trip.shape
             # pad it with 0s for max_cands dim
             span_trip_padded = F.pad(span_trip, (0,0,0,self.max_cand-num_cands), "constant", 0.0)

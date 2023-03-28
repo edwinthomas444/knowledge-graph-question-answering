@@ -1,23 +1,29 @@
 {
     "dataset":{
-        "ent_file": "../KB_v3/entity_csv.xlsx",
-        "prop_file": "../KB_v3/predicate_csv.xlsx",
-        "trip_file": "../KB_v3/triplet_csv.xlsx",
-        "ds_file": "../Dataset_v1/dev_30.txt"
+        "ent_file": "../KB_v4/entity_csv.xlsx",
+        "prop_file": "../KB_v4/predicate_csv.xlsx",
+        "trip_file": "../KB_v4/triplet_csv.xlsx",
+        "ds_file": "../Dataset_v3/train.txt"
     },
     "hparams":{
         "span_model": "Davlan/bert-base-multilingual-cased-ner-hrl",
         "sentence_model": "sentence-transformers/all-distilroberta-v1",
-        "max_cand":3,
-        "max_spans":12,
-        "max_properties":10,
+        "max_cand":1,
+        "max_spans":3,
+        "max_properties":3,
         "emb_size":768,
         "max_hops":1
     },
     "train":{
-        "batch_size":2
+        "batch_size":4,
+        "epochs":15,
+        "lr": 1e-02,
+        "save_path": "./checkpoint/rigel1.pt"
     },
     "inference":{
-        "thresh":0.00007
+        "thresh":0.0001,
+        "rigel_model": "./checkpoint/rigel1.pt",
+        "question": "Who played Max Zorin in a Bond movie?",
+        "multilabel": false
     }
 }
