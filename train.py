@@ -12,6 +12,7 @@ import json
 import argparse
 import torch.optim as optim
 import torch.optim.lr_scheduler as lr_scheduler
+from utils.scoring import multi_label_metrics
 
 def config_parser(config_path):
     with open(config_path, 'r') as f:
@@ -59,6 +60,7 @@ def main():
         hdim=dataset.total_properties,
         emb_dim=configs['hparams']['emb_size']
     )
+    print(model)
     model.to('cuda')
 
     
@@ -73,8 +75,11 @@ def main():
     optimizer = optim.Adam(model.parameters(), lr=configs['train']['lr'])
     scheduler = lr_scheduler.ExponentialLR(optimizer, gamma=0.96)
 
+    
     # train for total number of epochs
     for epoch in range(0,total_epochs):
+        ep_preds, ep_gt = [], []
+
         for batch in tqdm(train_dataloader, total=len(train_dataloader)):
             # move the batch to gpu
             batch = tuple(t.to('cuda') for t in batch)
@@ -90,7 +95,13 @@ def main():
             model.train()
 
             out = model(**inputs_er)
+            # print(out)
             out_loss = loss(out, batch[6])
+            # add batch preds and gt
+
+            # remove copy of output tensors from computation graph
+            ep_preds.append(out.detach().to('cpu'))
+            ep_gt.append(batch[6].detach().to('cpu'))   
 
             optimizer.zero_grad()
             out_loss.backward()
@@ -103,6 +114,15 @@ def main():
                 'loss': out_loss.item(),
                 }, configs['train']['save_path'])
         
+        # compute scores
+        result = multi_label_metrics(
+                                    y_pred=torch.cat(ep_preds, dim=0).tolist(),
+                                    y_true=torch.cat(ep_gt, dim=0).tolist(),
+                                    thresh=0.5,
+                                    labels=dataset.entity_labels)
+        # save metrics for each epoch
+        result.to_csv(f'./results/result1_{epoch}.csv')
+
         # step lr after each epoch
         scheduler.step()
         after_lr = optimizer.param_groups[0]["lr"]

@@ -113,6 +113,9 @@ class WikiDataDataset(Dataset):
         self.total_entities = len(self.entity_df)
         self.total_triplets = len(self.triplets_df)
         self.total_properties = len(self.properties_df)
+        print('Total Entitites: ',self.total_entities)
+        print('Total Relations: ',self.total_properties)
+        print('Total Triplets: ',self.total_triplets)
 
         self.emb_dim = emb_dim
         
@@ -136,6 +139,9 @@ class WikiDataDataset(Dataset):
         self.set_triplet_maps(self.triplets_df, prefix='s', map_val=Maps.subj.value)
         self.set_triplet_maps(self.triplets_df, prefix='o', map_val=Maps.obj.value)
         self.set_triplet_maps(self.triplets_df, prefix='p', map_val=Maps.prop.value)
+
+        # store labels for entities
+        self.entity_labels = self.set_entity_labels()
 
         # preprocess dataset
         self.dataset_df = self.preprocess_dataset(ds_file)
@@ -220,13 +226,13 @@ class WikiDataDataset(Dataset):
                 text_list = [row[f'{prefix_df}_label'].strip()] + (all_aliases if all_aliases!=[''] else [])
                 text_list = [x.lower().strip() for x in text_list]
                 self.id2text[map_val][qid]=text_list
-            
+                
                 for text in text_list:
                     self.text2id[map_val][text] = self.text2id[map_val].setdefault(text,[])+[qid]
                 # store in respective arrays for subject, property and object
                 self.id2ind[map_val][qid]=ind
                 self.ind2id[map_val][ind]=qid
-            
+
     def set_triplet_maps(self, df, prefix, map_val):
         col_name = f'{prefix}_id'
         for ind, row in df.iterrows():
@@ -235,6 +241,18 @@ class WikiDataDataset(Dataset):
             qid_ind = self.id2ind[map_val][row[col_name]]
             self.ind2tripletind[map_val][qid_ind]=self.ind2tripletind[map_val].setdefault(qid_ind, [])+[ind]
     
+    def set_entity_labels(self):
+        labels = []
+        for i in range(self.total_entities):
+            # find qid
+            map_ind = 0 if i in self.ind2id[0] else 1
+            qid = self.ind2id[map_ind][i]
+            # get first label from alias list
+            label = self.id2text[map_ind][qid][0]
+            labels.append(label)
+        return labels
+
+            
     def find_candqid_inds(self, span_text):
         # if span text is a valid entity text then return the corresponding qids..
         final_inds = []

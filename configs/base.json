@@ -16,7 +16,7 @@
     },
     "train":{
         "batch_size":4,
-        "epochs":15,
+        "epochs":10,
         "lr": 1e-02,
         "save_path": "./checkpoint/rigel1.pt"
     },
