@@ -10,3 +10,5 @@ checkpoint/
 cache/
 
 .vscode/
+
+results/
