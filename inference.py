@@ -74,7 +74,7 @@ class Inference:
             candqid_inds_tr = torch.tensor(candqid_inds)
             num_cands = list(candqid_inds_tr.shape)[0]
             # create padded version with candidates padded to max_cand for each span
-            cand_qids_padded = F.pad(candqid_inds_tr, (0,self.dataset.max_cand-num_cands), "constant", self.dataset.total_entities)
+            cand_qids_padded = F.pad(candqid_inds_tr, (0,self.dataset.max_cand-num_cands), "constant", self.dataset.total_entities-1)
             candqids.append(cand_qids_padded)
 
             # trim them to max_cand
@@ -114,14 +114,14 @@ class Inference:
         # pad this with num_classes instead of 0.0
         # handle cases of no spans
         if not ner_results:
-            candqids.append(torch.tensor([self.dataset.total_entities for _ in range(0, self.dataset.max_cand)]))
+            candqids.append(torch.tensor([self.dataset.total_entities-1 for _ in range(0, self.dataset.max_cand)]))
             attn_trips_ids.append(torch.tensor([[0.0 for _ in range(0, self.dataset.max_properties)] for _ in range(0,self.dataset.max_cand)]))
             trips_ids.append(torch.tensor([[0 for _ in range(0, self.dataset.max_properties)] for _ in range(0,self.dataset.max_cand)]))
             span_embs.append(torch.tensor([[0.0 for _ in range(self.dataset.emb_dim)]]))
             
         cand_qids_sent = torch.stack(candqids, dim=0)
         num_spans, _ = cand_qids_sent.shape
-        cand_qids_sent_padded = F.pad(cand_qids_sent, (0,0,0,self.dataset.max_spans-num_spans), "constant", self.dataset.total_entities)
+        cand_qids_sent_padded = F.pad(cand_qids_sent, (0,0,0,self.dataset.max_spans-num_spans), "constant", self.dataset.total_entities-1)
 
 
         # for triplet ids
@@ -194,7 +194,7 @@ class Inference:
             else:
                 ans_qid_inds = [torch.argmax(out.to('cpu')).item()]
             answers = [self.dataset.entity_df.iloc[ind]['e_label'] for ind in ans_qid_inds]
-            print(answers)
+            # print(answers)
             result = {
                 'Question':question,
                 'Answers':answers

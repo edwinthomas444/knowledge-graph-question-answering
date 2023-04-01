@@ -6,7 +6,7 @@
         "ds_file": "../Dataset_v3/train.txt"
     },
     "hparams":{
-        "span_model": "Davlan/bert-base-multilingual-cased-ner-hrl",
+        "span_model": "dslim/bert-base-NER",
         "sentence_model": "sentence-transformers/all-distilroberta-v1",
         "max_cand":1,
         "max_spans":3,
@@ -16,14 +16,14 @@
     },
     "train":{
         "batch_size":4,
-        "epochs":10,
+        "epochs":5,
         "lr": 1e-02,
         "save_path": "./checkpoint/rigel1.pt"
     },
     "inference":{
-        "thresh":0.0001,
+        "thresh":0.05,
         "rigel_model": "./checkpoint/rigel1.pt",
-        "question": "Who played Max Zorin in a Bond movie?",
-        "multilabel": false
+        "question": "For what movie did Tom Hanks get his first Oscar nomination for Best Actor?",
+        "multilabel": true
     }
 }

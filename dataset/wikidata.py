@@ -73,24 +73,21 @@ class NERSpanExtractionPipeline(TokenClassificationPipeline):
             # added for large NER model
             word = span['word']
             
-            # parse based on BIO tagging
-            if ner_tag.startswith('B-'):
-                # word positions
+            if ner_tag.startswith('B-') and not word.startswith('##'):
+                # beginning of new span
                 span_indexes.append([index])
                 span_words.append([span_text])
-            elif ner_tag.startswith('I-'):
+            elif ner_tag.startswith('I-') or word.startswith('##'):
+                # give space between new words (if not subwords)
+                sep = ' ' if not word.startswith('##') else ''
                 span_indexes[-1].append(index)
-                if not word.startswith('##'):
-                    span_words[-1].append(span_text)
-                else:
-                    span_words[-1][-1]+=span_text.lstrip("#")
+                span_words[-1][-1]+=sep+span_text.lstrip("#")
 
         for text, span in zip(span_words, span_indexes):
             slice_indices = torch.tensor([x for x in range(span[0], span[-1]+1)])
             sliced = torch.index_select(last_hidden_state, 1, slice_indices)
             mean = torch.mean(sliced, dim=1)
             proc_out.append({'span_text': ' '.join(text), 'span_embedding':mean})
-            
         return proc_out
     
 # Dataset class for KGQA on Wikidata
@@ -338,7 +335,7 @@ class WikiDataDataset(Dataset):
             candqid_inds_tr = torch.tensor(candqid_inds)
             num_cands = list(candqid_inds_tr.shape)[0]
             # create padded version with candidates padded to max_cand for each span
-            cand_qids_padded = F.pad(candqid_inds_tr, (0,self.max_cand-num_cands), "constant", self.total_entities)
+            cand_qids_padded = F.pad(candqid_inds_tr, (0,self.max_cand-num_cands), "constant", self.total_entities-1)
             candqids.append(cand_qids_padded)
 
             # trim them to max_cand
@@ -378,14 +375,14 @@ class WikiDataDataset(Dataset):
         # pad this with num_classes instead of 0.0
         # handle cases of no spans
         if not ner_results:
-            candqids.append(torch.tensor([self.total_entities for _ in range(0, self.max_cand)]))
+            candqids.append(torch.tensor([self.total_entities-1 for _ in range(0, self.max_cand)]))
             attn_trips_ids.append(torch.tensor([[0.0 for _ in range(0, self.max_properties)] for _ in range(0,self.max_cand)]))
             trips_ids.append(torch.tensor([[0 for _ in range(0, self.max_properties)] for _ in range(0,self.max_cand)]))
             span_embs.append(torch.tensor([[0.0 for _ in range(self.emb_dim)]]))
             
         cand_qids_sent = torch.stack(candqids, dim=0)
         num_spans, _ = cand_qids_sent.shape
-        cand_qids_sent_padded = F.pad(cand_qids_sent, (0,0,0,self.max_spans-num_spans), "constant", self.total_entities)
+        cand_qids_sent_padded = F.pad(cand_qids_sent, (0,0,0,self.max_spans-num_spans), "constant", self.total_entities-1)
 
 
         # for triplet ids

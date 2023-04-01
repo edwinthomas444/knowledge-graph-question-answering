@@ -95,7 +95,6 @@ def main():
             model.train()
 
             out = model(**inputs_er)
-            # print(out)
             out_loss = loss(out, batch[6])
             # add batch preds and gt
 

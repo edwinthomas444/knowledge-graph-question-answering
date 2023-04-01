@@ -55,15 +55,8 @@ class EntityResolution(nn.Module):
         
         # map to the tensor or zero vector (batched fashion)
         cand_scores = cand_scores.unsqueeze(-1)
-        one_hot = F.one_hot(qid_inds, num_classes=self.ne+1).float()
+        one_hot = F.one_hot(qid_inds, num_classes=self.ne).float()
         x0 = torch.matmul(one_hot.permute((0,2,1)),cand_scores)
-        # trim the last cell 
-        x0 = x0[:,:-1,:]
-        # as out of distribution classes are trimmed
-        # the remaining vector is passed through softmax again
-        # to obtain probability distributions
-        # ToDO: reengineer the OOD cases 
-        x0 = self.softmax(x0)
         return x0
     
 
@@ -131,7 +124,7 @@ class RigelModel(nn.Module):
             hdim=hdim,
             emb_dim=emb_dim
         )
-        self.sigmoid = nn.Sigmoid()
+        # self.sigmoid = nn.Sigmoid()
     def forward(self, 
                span_embs,
                triplet_ids_tr,
@@ -143,7 +136,7 @@ class RigelModel(nn.Module):
         out = self.er_model(span_embs, triplet_ids_tr, offsets_tr, attention_tr, qid_inds)
         out = self.inf_model(out, qn_emb)
         # apply sigmoid to final output
-        out = self.sigmoid(out)
+        # out = self.sigmoid(out)
         return out
     
 
