@@ -109,7 +109,7 @@ def main():
     test_dataloader = DataLoader(test_dataset, batch_size=configs['train']['batch_size'])
 
     model = RigelModel(
-        triplet_size=train_dataset.total_triplets,
+        triplet_size=train_dataset.unique_po,
         max_spans=configs['hparams']['max_spans'],
         max_cand=configs['hparams']['max_cand'],
         max_prop=configs['hparams']['max_properties'],
@@ -159,7 +159,7 @@ def main():
 
             # remove copy of output tensors from computation graph
             ep_preds.append(out.detach().to('cpu'))
-            ep_gt.append(batch[6].detach().to('cpu'))   
+            ep_gt.append(batch[6].detach().to('cpu'))
 
             optimizer.zero_grad()
             out_loss.backward()

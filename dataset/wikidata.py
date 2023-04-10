@@ -115,9 +115,6 @@ class WikiDataDataset(Dataset):
         self.total_entities = len(self.entity_df)
         self.total_triplets = len(self.triplets_df)
         self.total_properties = len(self.properties_df)
-        print('Total Entitites: ',self.total_entities)
-        print('Total Relations: ',self.total_properties)
-        print('Total Triplets: ',self.total_triplets)
 
         self.emb_dim = emb_dim
         
@@ -130,6 +127,9 @@ class WikiDataDataset(Dataset):
         # for triplet to qid mappings (subject, object, property)
         self.id2tripletind = [{},{},{}]
         self.ind2tripletind = [{},{},{}]
+
+        # unique index for bag of embeddings
+        self.tripletind2unique = {}
         
         # set entity and property mappings
         self.set_schema_maps(self.entity_df, prefix='s', map_val=Maps.subj.value)
@@ -141,6 +141,11 @@ class WikiDataDataset(Dataset):
         self.set_triplet_maps(self.triplets_df, prefix='s', map_val=Maps.subj.value)
         self.set_triplet_maps(self.triplets_df, prefix='o', map_val=Maps.obj.value)
         self.set_triplet_maps(self.triplets_df, prefix='p', map_val=Maps.prop.value)
+
+        print('Total Entitites: ',self.total_entities)
+        print('Total Relations: ',self.total_properties)
+        print('Total Triplets: ',self.total_triplets)
+        print('Total Unique (property, object) pairs: ',self.unique_po)
 
         # store labels for entities
         self.entity_labels = self.set_entity_labels()
@@ -187,6 +192,10 @@ class WikiDataDataset(Dataset):
         df_entities = self.preprocess_entities_list(ent_file)
         df_prop = self.preprocess_properties_list(pred_file)
         df_triplets = self.preprocess_triplets_list(trip_file)
+        # added unique id for groups of p_id, o_id for BOE implementation
+        df_triplets['unique'] = df_triplets.groupby(['p_id','o_id'], sort=False).ngroup()
+        # to be used for setting boe length, its indices given by unique column
+        self.unique_po = df_triplets['unique'].max()+1 # indices start from 0
         # commenting entity and property checks as test and val can contain entities not there in the train set
         # df_entities1 = df_entities[df_entities['e_id'].isin(df_triplets['s_id']) | df_entities['e_id'].isin(df_triplets['o_id'])]
         # df_prop1 = df_prop[df_prop['p_id'].isin(df_triplets['p_id'])]
@@ -238,6 +247,7 @@ class WikiDataDataset(Dataset):
                 
                 for text in text_list:
                     self.text2id[map_val][text] = self.text2id[map_val].setdefault(text,[])+[qid]
+
                 # store in respective arrays for subject, property and object
                 self.id2ind[map_val][qid]=ind
                 self.ind2id[map_val][ind]=qid
@@ -249,6 +259,9 @@ class WikiDataDataset(Dataset):
             
             qid_ind = self.id2ind[map_val][row[col_name]]
             self.ind2tripletind[map_val][qid_ind]=self.ind2tripletind[map_val].setdefault(qid_ind, [])+[ind]
+
+            # set the tripletind2unique mappings for boe
+            self.tripletind2unique[ind]=int(row['unique'])
     
     def set_entity_labels(self):
         labels = []
@@ -355,6 +368,8 @@ class WikiDataDataset(Dataset):
                 # get all triplet inds for BOE for the given cand_ind
                 # trim properties exceeded max_properties
                 triplet_inds = self.ind2tripletind[Maps.subj.value][cand_ind][:self.max_properties]
+                # map to the unique indices for boe
+                triplet_inds = [self.tripletind2unique[x] for x in triplet_inds]
                 triplet_inds_tr = torch.tensor(triplet_inds)
                 # pad inds for properties of this span to max properties
                 num_properties = list(triplet_inds_tr.shape)[0]
