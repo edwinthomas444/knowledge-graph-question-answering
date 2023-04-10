@@ -28,13 +28,14 @@ class Inference:
                             configs['dataset']['ent_file'],
                             configs['dataset']['prop_file'],
                             configs['dataset']['trip_file'],
-                            configs['dataset']['ds_file'],
+                            configs['dataset']['train_ds_file'],
                             max_cand=configs['hparams']['max_cand'],
                             max_spans=configs['hparams']['max_spans'],
                             max_properties=configs['hparams']['max_properties'],
                             span_detn_model=configs['hparams']['span_model'],
                             sentence_emb_model=configs['hparams']['sentence_model'],
-                            emb_dim=configs['hparams']['emb_size'])
+                            emb_dim=configs['hparams']['emb_size'],
+                            split='train')
         return dataset
 
     def get_model(self, checkpoint=''):
@@ -194,7 +195,7 @@ class Inference:
             else:
                 ans_qid_inds = [torch.argmax(out.to('cpu')).item()]
             answers = [self.dataset.entity_df.iloc[ind]['e_label'] for ind in ans_qid_inds]
-            # print(answers)
+            
             result = {
                 'Question':question,
                 'Answers':answers

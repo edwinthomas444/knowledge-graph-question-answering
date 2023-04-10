@@ -29,5 +29,7 @@ def multi_label_metrics(y_true, y_pred, labels, thresh):
         'f1':f1,
         'support':support
     }, columns=['label','precision','recall','f1','support'])
+
+    micro_avg_f1 = results['f1'].iloc[-4]
     
-    return results
+    return results, micro_avg_f1

@@ -1,29 +1,31 @@
 {
     "dataset":{
-        "ent_file": "../KB_v4/entity_csv.xlsx",
-        "prop_file": "../KB_v4/predicate_csv.xlsx",
-        "trip_file": "../KB_v4/triplet_csv.xlsx",
-        "ds_file": "../Dataset_v3/train.txt"
+        "ent_file": "../KB_v5/entity_csv.xlsx",
+        "prop_file": "../KB_v5/predicate_csv.xlsx",
+        "trip_file": "../KB_v5/triplet_csv.xlsx",
+        "train_ds_file": "../Dataset_v4/train.txt",
+        "val_ds_file": "../Dataset_v4/dev.txt",
+        "test_ds_file": "../Dataset_v4/test.txt"
     },
     "hparams":{
         "span_model": "dslim/bert-base-NER",
         "sentence_model": "sentence-transformers/all-distilroberta-v1",
-        "max_cand":1,
+        "max_cand":3,
         "max_spans":3,
         "max_properties":3,
         "emb_size":768,
         "max_hops":1
     },
     "train":{
-        "batch_size":4,
-        "epochs":5,
+        "batch_size":16,
+        "epochs":8,
         "lr": 1e-02,
         "save_path": "./checkpoint/rigel1.pt"
     },
     "inference":{
-        "thresh":0.05,
-        "rigel_model": "./checkpoint/rigel1.pt",
-        "question": "For what movie did Tom Hanks get his first Oscar nomination for Best Actor?",
+        "thresh":0.35,
+        "rigel_model": "./checkpoint/rigel1_best2_b16_alldomains.pt",
+        "question": "Who won Super Bowl XXXV1?",
         "multilabel": true
     }
 }
