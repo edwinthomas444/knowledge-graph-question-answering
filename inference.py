@@ -41,7 +41,7 @@ class Inference:
     def get_model(self, checkpoint=''):
         # define the model
         model = RigelModel(
-            triplet_size=self.dataset.total_triplets,
+            triplet_size=self.dataset.unique_po,
             max_spans=self.configs['hparams']['max_spans'],
             max_cand=self.configs['hparams']['max_cand'],
             max_prop=self.configs['hparams']['max_properties'],
@@ -83,6 +83,8 @@ class Inference:
                 # get all triplet inds for BOE for the given cand_ind
                 # trip properties to max length
                 triplet_inds = self.dataset.ind2tripletind[Maps.subj.value][cand_ind][:self.dataset.max_properties]
+                # map to the unique indices for boe
+                triplet_inds = [self.dataset.tripletind2unique[x] for x in triplet_inds]
                 triplet_inds_tr = torch.tensor(triplet_inds)
                 # pad inds for properties of this span to max properties
                 num_properties = list(triplet_inds_tr.shape)[0]
