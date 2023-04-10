@@ -80,8 +80,12 @@ class NERSpanExtractionPipeline(TokenClassificationPipeline):
             elif ner_tag.startswith('I-') or word.startswith('##'):
                 # give space between new words (if not subwords)
                 sep = ' ' if not word.startswith('##') else ''
-                span_indexes[-1].append(index)
-                span_words[-1][-1]+=sep+span_text.lstrip("#")
+                if len(span_indexes):
+                    span_indexes[-1].append(index)
+                    span_words[-1][-1]+=sep+span_text.lstrip("#")
+                else:
+                    span_indexes.append([index])
+                    span_words.append([span_text.lstrip("#")])
 
         for text, span in zip(span_words, span_indexes):
             slice_indices = torch.tensor([x for x in range(span[0], span[-1]+1)])
@@ -103,7 +107,8 @@ class WikiDataDataset(Dataset):
                  max_properties,
                  span_detn_model,
                  sentence_emb_model,
-                 emb_dim):
+                 emb_dim,
+                 split):
 
         self.max_spans, self.max_cand, self.max_properties = max_spans, max_cand, max_properties
         self.entity_df, self.properties_df, self.triplets_df = self.preprocess_df(ent_file, pred_file, trip_file)
@@ -141,7 +146,8 @@ class WikiDataDataset(Dataset):
         self.entity_labels = self.set_entity_labels()
 
         # preprocess dataset
-        self.dataset_df = self.preprocess_dataset(ds_file)
+        self.dataset_df = self.preprocess_dataset(ds_file, split)
+        print(f'Length of Dataset (split: {split}): ',len(self.dataset_df))
 
         # get ner pipeline
         self.ner = NERSpanExtractionPipeline(model_name = span_detn_model)
@@ -181,11 +187,12 @@ class WikiDataDataset(Dataset):
         df_entities = self.preprocess_entities_list(ent_file)
         df_prop = self.preprocess_properties_list(pred_file)
         df_triplets = self.preprocess_triplets_list(trip_file)
-        df_entities1 = df_entities[df_entities['e_id'].isin(df_triplets['s_id']) | df_entities['e_id'].isin(df_triplets['o_id'])]
-        df_prop1 = df_prop[df_prop['p_id'].isin(df_triplets['p_id'])]
-        return df_entities1, df_prop1, df_triplets
+        # commenting entity and property checks as test and val can contain entities not there in the train set
+        # df_entities1 = df_entities[df_entities['e_id'].isin(df_triplets['s_id']) | df_entities['e_id'].isin(df_triplets['o_id'])]
+        # df_prop1 = df_prop[df_prop['p_id'].isin(df_triplets['p_id'])]
+        return df_entities, df_prop, df_triplets
     
-    def preprocess_dataset(self, ds_file):
+    def preprocess_dataset(self, ds_file, split):
         data = {}
         with open(ds_file, 'r', encoding='utf-8') as f:
             lines = f.readlines()
@@ -193,6 +200,11 @@ class WikiDataDataset(Dataset):
                 entry = json.loads(line)
                 question = entry['question']
                 answer_qids = []
+                
+                # skip entry if answer entity is none
+                if entry['answer']['answer'] is None:
+                    continue
+
                 for answer in entry['answer']['answer']:
                     answer_qids.append(answer['name'])
                 # check if all answer qids are present in the objects list (obtained from triplet object column)
@@ -205,7 +217,7 @@ class WikiDataDataset(Dataset):
         
         df = pd.DataFrame(data, columns=['question','answer_qids'])
         df = df.drop_duplicates()
-        df.to_csv('./output/dataset.csv')
+        df.to_csv(f'./output/{split}_dataset.csv')
         return df
     
     def set_schema_maps(self, df, prefix, map_val):
