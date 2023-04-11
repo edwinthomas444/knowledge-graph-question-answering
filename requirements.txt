@@ -1,0 +1,7 @@
+tensorflow_gpu==1.15.0
+tensorflow-estimator==1.15.1
+protobuf==3.20.*
+tensorflow_hub
+torch==1.8.1+cu101 torchvision==0.9.1+cu101 torchaudio==0.8.1 -f https://download.pytorch.org/whl/torch_stable.html
+pandas
+sentence_transformers

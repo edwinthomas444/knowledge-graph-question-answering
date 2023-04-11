@@ -20,12 +20,12 @@
         "batch_size":8,
         "epochs":8,
         "lr": 1e-02,
-        "save_path": "./checkpoint/rigel1.pt"
+        "save_path": "./checkpoint/model_cp1.pt"
     },
     "inference":{
         "thresh":0.05,
-        "rigel_model": "./checkpoint/rigel1_best2.pt",
-        "question": "Who was the star of Black Panther and passed away in August of 2020?",
+        "rigel_model": "./checkpoint/model_cp1.pt",
+        "question": "Where is the director of Rockstar from?",
         "multilabel": true
     }
 }
