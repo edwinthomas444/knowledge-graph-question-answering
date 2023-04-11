@@ -1,4 +1,4 @@
-# knowledge-graph-question-answering
+# Knowledge Graph Question Answering
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/edwinthomas444/knowledge-graph-question-answering/blob/main/LICENSE)
 
 ## Table of Contents
